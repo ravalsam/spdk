@@ -170,6 +170,10 @@ function linux_unbind_driver() {
 	ven_dev_id="${pci_ids_vendor["$bdf"]#0x} ${pci_ids_device["$bdf"]#0x}"
 	local old_driver_name=${drivers_d["$bdf"]:-no driver}
 
+	if [[ "${DRIVER_OVERRIDE}" == "none" ]]; then
+		pci_dev_echo "$bdf" "$old_driver_name -> no driver"
+	fi
+
 	if [[ $old_driver_name == "no driver" ]]; then
 		pci_dev_echo "$bdf" "Not bound to any driver"
 		return 0
@@ -245,6 +249,10 @@ function collect_devices() {
 					fi
 				fi
 				if [[ $dev_type == vmd ]]; then
+					if [[ $DRIVER_OVERRIDE  != "none" ]]; then
+						echo "VMD is enabled so use DRIVER_OVERRIDE=\"none\" to just unbind the driver without binding it to any other."
+					fi
+
 					if [[ $PCI_ALLOWED != *"$bdf"* ]]; then
 						pci_dev_echo "$bdf" "Skipping not allowed VMD controller at $bdf"
 						in_use=1
@@ -345,7 +353,7 @@ function configure_linux_pci() {
 
 	for bdf in "${!all_devices_d[@]}"; do
 		if ((all_devices_d["$bdf"] == 0)); then
-			if [[ -n ${nvme_d["$bdf"]} ]]; then
+			if [[ -n ${nvme_d["$bdf"]} || -n ${vmd_d["$bdf"]} ]]; then
 				# Some nvme controllers may take significant amount of time while being
 				# unbound from the driver. Put that task into background to speed up the
 				# whole process. Currently this is done only for the devices bound to the
